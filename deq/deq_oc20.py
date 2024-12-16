@@ -376,7 +376,7 @@ class DEQ_OC20(BaseModel):
     # decorator to enable gradient tracking to compute F=dE/dx
     # not used and can cause problems, best to disable it
     # @conditional_grad(torch.enable_grad())
-    def forward(self, data):
+    def forward(self, data, fixedpoint=None):
         self.batch_size = len(data.natoms)
         self.dtype = data.pos.dtype
         self.device = data.pos.device
