@@ -5,12 +5,19 @@ We hope that this can serve as a rough template on how to DEQuify your own force
 
 This code is not enough to reprocude the results in the paper.
 Especially the speed improvements require engineering changes to the TorchDEQ solver and the OC20 evaluation code, which are a bit tedious and break compatibility.
-The code currently only works for OC20, not MD17/MD22.
+The code currently only works for the OC20 dataset, not MD17/MD22.
 
 ## Usage
 
 ```bash
-python run_deq.py
+python main_oc20.py \
+    --num-gpus 1 \
+    --num-nodes 1 \
+    --mode train \
+    --config-yml 'deq/deq_200k.yml' \
+    --run-dir 'models/deq/200k' \
+    --print-every 200 \
+    --amp \
 ```
 
 ## Installation
@@ -32,10 +39,10 @@ wandb login
 ```
 
 ```bash
-# get the Open Catalyst Project (required for Equiformerv2)
+# get the Open Catalyst Project
 # outdated: git clone git@github.com:Open-Catalyst-Project/ocp.git
 # the project has since moved to https://github.com/FAIR-Chem/fairchem/tree/main/src/fairchem/core
-# we will use the old version:
+# we will use the old version for compatibility with EquiformerV2:
 # https://github.com/FAIR-Chem/fairchem/blob/v0.1.0
 git clone https://github.com/FAIR-Chem/fairchem.git
 cd fairchem
@@ -58,11 +65,26 @@ python scripts/download_data.py --task s2ef --split "val_id" --num-workers 8 --r
 # python scripts/download_data.py --task s2ef --split test
 cd ..
 ```
-a
+
 ## Code Walkthrough
 
-All changes to existing code are marked by `# Change@DEQ`. All additional code is in the `deq` folder.
+All changes to existing code are marked by `Change@DEQ`. All additional code is in the `deq` folder.
 
 Changes made
 - Recurrent / Variational Dropout added to `nets/equiformer_v2/drop.py` and initialized in `nets/equiformer_v2/transformer_block.py`
 - DEQ added to `deq/deq_oc20.py`
+
+## Citation
+
+If you use this code, please cite our paper:
+```
+@inproceedings{
+    anonymous2024dequify,
+    title={{DEQ}uify your force field: Towards efficient simulations using deep equilibrium models},
+    author={Andreas Burger and Lucas Thiede and Alan Aspuru-Guzik and Nandita Vijaykumar},
+    booktitle={Submitted to The Thirteenth International Conference on Learning Representations},
+    year={2024},
+    url={https://openreview.net/forum?id=rynb4Vn8rb},
+    note={under review}
+}
+```
