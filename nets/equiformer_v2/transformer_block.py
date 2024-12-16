@@ -33,7 +33,10 @@ from .so3 import (
 from .radial_function import RadialFunction
 from .drop import (
     GraphDropPath, 
-    EquivariantDropoutArraySphericalHarmonics
+    EquivariantDropoutArraySphericalHarmonics,
+    # Change@DEQ: Recurrent / Variational Dropout
+    RecurrentDropout,
+    RecurrentGraphPathDrop,
 )
 
 
@@ -95,6 +98,7 @@ class SO2EquivariantGraphAttention(torch.nn.Module):
         use_gate_act=False, 
         use_sep_s2_act=True,
         alpha_drop=0.0,
+        recurrent_alpha_drop=False, # Change@DEQ
     ):
         super(SO2EquivariantGraphAttention, self).__init__()
         
@@ -189,7 +193,10 @@ class SO2EquivariantGraphAttention(torch.nn.Module):
         
         self.alpha_dropout = None
         if alpha_drop != 0.0:
-            self.alpha_dropout = torch.nn.Dropout(alpha_drop)
+            if recurrent_alpha_drop:
+                self.alpha_dropout = RecurrentDropout(alpha_drop)
+            else:
+                self.alpha_dropout = torch.nn.Dropout(alpha_drop)
 
         if self.use_gate_act:
             self.gate_act = GateActivation(
@@ -525,7 +532,12 @@ class TransBlockV2(torch.nn.Module):
 
         alpha_drop=0.0, 
         drop_path_rate=0.0, 
-        proj_drop=0.0
+        proj_drop=0.0,
+        
+        # Change@DEQ: Recurrent / Variational Dropout
+        # use recurrent dropout instead of vanilla dropout
+        recurrent_alpha_drop=False,
+        recurrent_path_drop=False,
     ):
         super(TransBlockV2, self).__init__()
 
@@ -554,9 +566,18 @@ class TransBlockV2(torch.nn.Module):
             use_gate_act=use_gate_act,
             use_sep_s2_act=use_sep_s2_act,
             alpha_drop=alpha_drop,
+            recurrent_alpha_drop=recurrent_alpha_drop, # Change@DEQ
         )
 
-        self.drop_path = GraphDropPath(drop_path_rate) if drop_path_rate > 0. else None
+        # Change@DEQ: Recurrent / Variational Dropout
+        self.drop_path = None
+        if drop_path_rate > 0:
+            if recurrent_path_drop:
+                self.drop_path = RecurrentGraphPathDrop(drop_path_rate)
+            else:
+                self.drop_path = GraphDropPath(drop_path_rate)
+        
+        # not used in EquiformerV2, so no recurrent dropout implemented yet
         self.proj_drop = EquivariantDropoutArraySphericalHarmonics(proj_drop, drop_graph=False) if proj_drop > 0.0 else None
 
         self.norm_2 = get_normalization_layer(norm_type, lmax=max_lmax, num_channels=sphere_channels)
