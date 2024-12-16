@@ -562,6 +562,7 @@ class DEQ_OC20(BaseModel):
             dtype=self.dtype,
             embedding=z_pred[-1],
         )
+        fixedpoint = z_pred[-1].detach()
         
         # Change@DEQ end
 
@@ -587,7 +588,10 @@ class DEQ_OC20(BaseModel):
                 edge_index)
             forces = forces.embedding.narrow(1, 1, 3)
             forces = forces.view(-1, 3)            
-            
+        
+        # Change@DEQ: return the fixedpoint or saved it to self
+        # to use it in the next forward pass
+        # not implemented to preserve compatibility with OCP
         if not self.regress_forces:
             return energy
         else:
