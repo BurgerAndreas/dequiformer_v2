@@ -29,6 +29,9 @@ import nets
 import oc20.trainer
 import oc20.trainer.dist_setup 
 
+# Change@DEQ: import DEQ
+from deq.deq_oc20 import DEQ_OC20
+import deq.torch_compatability
 
 class Runner(submitit.helpers.Checkpointable):
     def __init__(self):

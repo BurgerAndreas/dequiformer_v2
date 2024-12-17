@@ -24,32 +24,35 @@ try:
 except ImportError:
     pass
 
-from .gaussian_rbf import GaussianRadialBasisLayer
+# Change@DEQ: import functions from EquiformerV2
+from ocpmodels.models.equiformer_v2.gaussian_rbf import GaussianRadialBasisLayer
 from torch.nn import Linear
-from .edge_rot_mat import init_edge_rot_mat
-from .so3 import (
+from ocpmodels.models.equiformer_v2.edge_rot_mat import init_edge_rot_mat
+from ocpmodels.models.equiformer_v2.so3 import (
     CoefficientMappingModule,
     SO3_Embedding,
     SO3_Grid,
     SO3_Rotation,
     SO3_LinearV2
 )
-from .module_list import ModuleListInfo
-from .so2_ops import SO2_Convolution
-from .radial_function import RadialFunction
-from .layer_norm import (
+from ocpmodels.models.equiformer_v2.module_list import ModuleListInfo
+from ocpmodels.models.equiformer_v2.so2_ops import SO2_Convolution
+from ocpmodels.models.equiformer_v2.radial_function import RadialFunction
+from ocpmodels.models.equiformer_v2.layer_norm import (
     EquivariantLayerNormArray, 
     EquivariantLayerNormArraySphericalHarmonics, 
     EquivariantRMSNormArraySphericalHarmonics,
     EquivariantRMSNormArraySphericalHarmonicsV2,
     get_normalization_layer
 )
-from .transformer_block import (
+
+# Change@DEQ: import the function we changed from EquiformerV2
+from nets.equiformer_v2.transformer_block import (
     SO2EquivariantGraphAttention,
     FeedForwardNetwork,
     TransBlockV2, 
 )
-from .input_block import EdgeDegreeEmbedding
+from ocpmodels.models.equiformer_v2.input_block import EdgeDegreeEmbedding
 
 import torchdeq # Change@DEQ
 
@@ -473,14 +476,17 @@ class DEQ_OC20(BaseModel):
 
         # if previous fixed-point is not reused, initialize z
         if fixedpoint is None:
-            z: torch.Tensor = self._init_z(shape=emb.shape, emb=emb)
+            z = torch.zeros(
+                emb.shape, # [batch_size, dim]
+                device=self.device,
+            )
             reuse = False
         else:
             z = fixedpoint.to(emb.device)
             reuse = True
         
         # from torchdeq: weight norm or spectral norm regularization of weights
-        reset_norm(self.blocks)
+        torchdeq.norm.reset_norm(self.blocks)
 
         # set dropout mask
         # problem: usual dropout will change for every layer pass,
@@ -492,18 +498,18 @@ class DEQ_OC20(BaseModel):
             # but recurrent dropout will have it
             if callable(
                 getattr(
-                    self.blocks[i].graph_attention.alpha_dropout, "update_mask", None
+                    self.blocks[i].ga.alpha_dropout, "update_mask", None
                 )
             ):
                 # shape will vary with each batch, since it depends on the number of edges
                 # which depends on the molecule configuration
-                alpha_mask = self.blocks[i].graph_attention.alpha_dropout.update_mask(
+                alpha_mask = self.blocks[i].ga.alpha_dropout.update_mask(
                     shape=[self.num_edges, 1, self.num_heads, 1],  
                     dtype=x.dtype,
                     device=x.device,
                 )
-            if self.blocks[i].path_drop is not None:
-                self.blocks[i].path_drop.update_mask(x=z, batch=data.batch)
+            if self.blocks[i].drop_path is not None:
+                self.blocks[i].drop_path.update_mask(x=z, batch=data.batch)
             if self.blocks[i].proj_drop is not None:
                 self.blocks[i].proj_drop.update_mask(x=z, batch=data.batch)
 
@@ -544,7 +550,7 @@ class DEQ_OC20(BaseModel):
         # During training, returns the sampled fixed point trajectory (tracked gradients) according to ``n_states`` or ``indexing``.
         # During inference, returns a list containing the fixed point solution only.
         # not implemented: during inference, we want to pass different solver_kwargs with a relaxed stopping criterion = tolerance
-        z_pred, info = self.deq(func=f, z_init=z)
+        z_pred, info = self.deq(func=f, z_star=z)
         
         # I recommend to log the info dictionary
         # especially 'nsteps'
@@ -555,13 +561,13 @@ class DEQ_OC20(BaseModel):
 
         # tensor -> S03_Embedding
         x = SO3_Embedding(
-            length=self.num_atoms,
+            length=num_atoms,
             lmax_list=self.lmax_list,
-            num_channels=self.sphere_channels_fixedpoint,
+            num_channels=self.sphere_channels,
             device=self.device,
             dtype=self.dtype,
-            embedding=z_pred[-1],
         )
+        x.set_embedding(z_pred[-1])
         fixedpoint = z_pred[-1].detach()
         
         # Change@DEQ end

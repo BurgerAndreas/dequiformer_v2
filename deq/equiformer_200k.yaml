@@ -30,7 +30,7 @@ hide_eval_progressbar: False
 
 
 model:
-  name: deq_oc20 # Change@DEQ: equiformer_v2 -> deq_oc20
+  name: equiformer_v2
   
   use_pbc:                  True
   regress_forces:           True
@@ -39,7 +39,7 @@ model:
   max_radius:               12.0
   max_num_elements:         90
 
-  num_layers:               1  # Change@DEQ: 12 -> 1
+  num_layers:               4  # Change@DEQ: 12 -> 4
   sphere_channels:          128
   attn_hidden_channels:     64              # [64, 96] This determines the hidden size of message passing. Do not necessarily use 96. 
   num_heads:                8
