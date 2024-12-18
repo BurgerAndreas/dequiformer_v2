@@ -486,7 +486,7 @@ class DEQ_OC20(BaseModel):
             reuse = True
         
         # from torchdeq: weight norm or spectral norm regularization of weights
-        torchdeq.norm.reset_norm(self.blocks)
+        # torchdeq.norm.reset_norm(self.blocks)
 
         # set dropout mask
         # problem: usual dropout will change for every layer pass,
@@ -553,7 +553,8 @@ class DEQ_OC20(BaseModel):
         z_pred, info = self.deq(func=f, z_star=z)
         
         # I recommend to log the info dictionary
-        # especially 'nsteps'
+        # especially 'nstep'
+        print(f"nstep: {info['nstep'].mean().item():.2f}")
 
         ###############################################################
         # Decode the fixed-point estimate

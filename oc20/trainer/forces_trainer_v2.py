@@ -315,8 +315,11 @@ class ForcesTrainerV2(BaseTrainerV2):
         # to prevent inconsistencies due to different batch size in checkpoint.
         start_epoch = self.step // len(self.train_loader)
 
-        for epoch_int in range(
-            start_epoch, self.config["optim"]["max_epochs"]
+        for epoch_int in tqdm(
+            range(
+                start_epoch, self.config["optim"]["max_epochs"]
+            ),
+            desc="Epochs",
         ):
             self.train_sampler.set_epoch(epoch_int)
             skip_steps = self.step % len(self.train_loader)
@@ -324,6 +327,7 @@ class ForcesTrainerV2(BaseTrainerV2):
 
             self.metrics = {}
 
+            print(f"epoch: {epoch_int}")
             for i in range(skip_steps, len(self.train_loader)):
                 self.epoch = epoch_int + (i + 1) / len(self.train_loader)
                 self.step = epoch_int * len(self.train_loader) + i + 1

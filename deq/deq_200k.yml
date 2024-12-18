@@ -48,7 +48,7 @@ model:
   ffn_hidden_channels:      128
   norm_type:                'layer_norm_sh'    # ['rms_norm_sh', 'layer_norm', 'layer_norm_sh']
 
-  lmax_list:                [4]  # Change@DEQ: 6 -> 4
+  lmax_list:                [3]  # Change@DEQ: 6 -> 3
   mmax_list:                [2]             
   grid_resolution:          18              # [18, 16, 14, None] For `None`, simply comment this line. 
 
