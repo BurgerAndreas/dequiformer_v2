@@ -296,6 +296,7 @@ class ForcesTrainerV2(BaseTrainerV2):
         eval_every = self.config["optim"].get(
             "eval_every", len(self.train_loader)
         )
+        print(f"eval_every: {eval_every}")
         checkpoint_every = self.config["optim"].get(
             "checkpoint_every", eval_every
         )
@@ -425,17 +426,38 @@ class ForcesTrainerV2(BaseTrainerV2):
                         else:
                             self.run_relaxations()
 
+                if self.grad_accumulation_steps != 1:
+                    if self.step % self.grad_accumulation_steps == 0:
+                        # First do optimizer step
+                        if self.scaler:
+                            self.scaler.step(self.optimizer)
+                            self.scaler.update()
+                        else:
+                            self.optimizer.step()
+                        self.optimizer.zero_grad()
+                        
+                        # Then do scheduler step
+                        if self.scheduler.scheduler_type != "ReduceLROnPlateau":
+                            self.scheduler.step()
+                else:
+                    # First do optimizer step  
+                    if self.scaler:
+                        self.scaler.step(self.optimizer)
+                        self.scaler.update()
+                    else:
+                        self.optimizer.step()
+                    self.optimizer.zero_grad()
+                    
+                    # Then do scheduler step
+                    if self.scheduler.scheduler_type != "ReduceLROnPlateau":
+                        self.scheduler.step()
+
+                # Handle ReduceLROnPlateau scheduler separately since it needs validation metrics
                 if self.scheduler.scheduler_type == "ReduceLROnPlateau":
                     if self.step % eval_every == 0:
                         self.scheduler.step(
                             metrics=val_metrics[primary_metric]["metric"],
                         )
-                else:
-                    if self.grad_accumulation_steps != 1:
-                        if self.step % self.grad_accumulation_steps == 0:
-                            self.scheduler.step()
-                    else:
-                        self.scheduler.step()
 
             torch.cuda.empty_cache()
 
@@ -850,7 +872,7 @@ class ForcesTrainerV2(BaseTrainerV2):
 
     @torch.no_grad()
     def validate(self, split="val", disable_tqdm=False, use_ema=False):
-        self.file_logger.info(f"Evaluating on {split}.")
+        self.file_logger.info(f"Evaluating on {split} at step {self.step}.")
 
         if self.is_hpo:
             disable_tqdm = True

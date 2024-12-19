@@ -1,0 +1,24 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": "${command:pickArgs}"
+        },
+        {
+            "name": "DEQ",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "main_oc20.py",
+            "console": "integratedTerminal",
+            "args": "--num-gpus 1 --num-nodes 1 --mode train --config-yml 'deq/deq_200k.yml' --run-dir 'models/deq/200k' --print-every 10 --amp"
+        }
+    ]
+}

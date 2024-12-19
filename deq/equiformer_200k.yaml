@@ -68,7 +68,7 @@ model:
   use_grid_mlp:             True        # [False, True] If `True`, use projecting to grids and performing MLPs for FFNs.
   use_sep_s2_act:           True        # Separable S2 activation. Used for ablation study.
 
-  alpha_drop:               0.0         # [0.0, 0.1] # Change@DEQ: 0.1 -> 0.0
+  alpha_drop:               0.1         # [0.0, 0.1] # Change@DEQ: 0.1 -> 0.0
   drop_path_rate:           0.05        # [0.0, 0.05] 
   proj_drop:                0.0
 
@@ -101,7 +101,7 @@ optim:
   loss_energy: mae
   loss_force: l2mae
 
-  eval_every: 5000
+  eval_every: 1000
 
 
 #slurm:

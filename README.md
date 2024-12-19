@@ -15,7 +15,7 @@ python main_oc20.py \
     --mode train \
     --config-yml 'deq/deq_200k.yml' \
     --run-dir 'models/deq/200k' \
-    --print-every 200 \
+    --print-every 10 \
     --amp 
 ```
 
@@ -26,7 +26,7 @@ python main_oc20.py \
     --mode train \
     --config-yml 'deq/equiformer_200k.yaml' \
     --run-dir 'models/equiformer_v2/200k' \
-    --print-every 200 \
+    --print-every 10 \
     --amp 
 ```
 

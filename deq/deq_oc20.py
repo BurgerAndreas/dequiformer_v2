@@ -54,7 +54,9 @@ from nets.equiformer_v2.transformer_block import (
 )
 from ocpmodels.models.equiformer_v2.input_block import EdgeDegreeEmbedding
 
-import torchdeq # Change@DEQ
+# Change@DEQ
+import torchdeq 
+import wandb
 
 # Statistics of IS2RE 100K 
 _AVG_NUM_NODES  = 77.81317
@@ -367,8 +369,11 @@ class DEQ_OC20(BaseModel):
             "f_solver": "anderson",
             "ift": True, # implicit function theorem instead of phantom / 1-step grad
             # "n_states": 1, # > 0 -> sparse fixed-point correction loss
-            "f_tol": 1e-3, # [1e-2, 1e-4]
+            "f_tol": 1e-4, # [1e-2, 1e-4]
             "f_stop_mode": 'rel',
+            "b_solver": "anderson",
+            "b_tol": 1e-6, 
+            "b_stop_mode": 'rel',
         }
         self.deq = torchdeq.get_deq(**deq_kwargs)
         # optional
@@ -486,7 +491,7 @@ class DEQ_OC20(BaseModel):
             reuse = True
         
         # from torchdeq: weight norm or spectral norm regularization of weights
-        # torchdeq.norm.reset_norm(self.blocks)
+        torchdeq.norm.reset_norm(self.blocks)
 
         # set dropout mask
         # problem: usual dropout will change for every layer pass,
@@ -501,9 +506,9 @@ class DEQ_OC20(BaseModel):
                     self.blocks[i].ga.alpha_dropout, "update_mask", None
                 )
             ):
-                # shape will vary with each batch, since it depends on the number of edges
+                # shape will vary with each batch, since shape depends on the number of edges
                 # which depends on the molecule configuration
-                alpha_mask = self.blocks[i].ga.alpha_dropout.update_mask(
+                self.blocks[i].ga.alpha_dropout.update_mask(
                     shape=[self.num_edges, 1, self.num_heads, 1],  
                     dtype=x.dtype,
                     device=x.device,
@@ -517,7 +522,7 @@ class DEQ_OC20(BaseModel):
             """Implicit layer for DEQ that defines the fixed-point.
             Make sure to inputs and outputs are torch.tensor, not SO3_Embedding, to not break TorchDEQ.
             Args:
-                z: torch.Tensor, [B, N, D, C]: fixed-point estimate (node features)
+                _z: torch.Tensor, [B, N, D, C]: fixed-point estimate (node features)
                 emb: torch.Tensor, [B, N, D, C]: input injection (output of encoder)
             """
             """ Input injection and normalize """
@@ -533,17 +538,16 @@ class DEQ_OC20(BaseModel):
                 dtype=self.dtype,
             )
             _zso3.set_embedding(_z)
-            _z = _zso3
             """ Layers / Transformer blocks """
             for i in range(self.num_layers):
-                _z = self.blocks[i](
-                    _z,  # SO3_Embedding
+                _zso3 = self.blocks[i](
+                    _zso3,  # SO3_Embedding
                     atomic_numbers,
                     edge_distance,
                     edge_index,
                     batch=data.batch,  # for GraphPathDrop
                 )
-            return _z.embedding
+            return _zso3.embedding
 
 
         # find fixed-point
@@ -552,9 +556,9 @@ class DEQ_OC20(BaseModel):
         # not implemented: during inference, we want to pass different solver_kwargs with a relaxed stopping criterion = tolerance
         z_pred, info = self.deq(func=f, z_star=z)
         
-        # I recommend to log the info dictionary
-        # especially 'nstep'
-        print(f"nstep: {info['nstep'].mean().item():.2f}")
+        # I recommend to log the info dictionary, especially 'nstep' (solver steps / layer passes)
+        if wandb.run is not None:
+            wandb.log({"nstep": info['nstep'].mean().item()}, step=wandb.run.step)
 
         ###############################################################
         # Decode the fixed-point estimate
@@ -569,7 +573,10 @@ class DEQ_OC20(BaseModel):
             dtype=self.dtype,
         )
         x.set_embedding(z_pred[-1])
-        fixedpoint = z_pred[-1].detach()
+        
+        # fixed-point reuse: return or save this for next forward pass
+        # not implemented to preserve compatibility with OCP
+        # fixedpoint = z_pred[-1].detach().copy()
         
         # Change@DEQ end
 
@@ -596,9 +603,6 @@ class DEQ_OC20(BaseModel):
             forces = forces.embedding.narrow(1, 1, 3)
             forces = forces.view(-1, 3)            
         
-        # Change@DEQ: return the fixedpoint or saved it to self
-        # to use it in the next forward pass
-        # not implemented to preserve compatibility with OCP
         if not self.regress_forces:
             return energy
         else:
